@@ -1,4 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
+// Copyright (c) 2018-2019 The Soteria Engineering developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/peer"
-	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/go-socks/socks"
+	"github.com/soteria-dag/soterd/chaincfg"
+	"github.com/soteria-dag/soterd/chaincfg/chainhash"
+	"github.com/soteria-dag/soterd/peer"
+	"github.com/soteria-dag/soterd/wire"
 )
 
 // conn mocks a network connection by implementing the net.Conn interface.  It
@@ -100,7 +101,7 @@ type peerStats struct {
 	wantConnected       bool
 	wantVersionKnown    bool
 	wantVerAckReceived  bool
-	wantLastBlock       int32
+	wantMaxBlockHeight  int32
 	wantStartingHeight  int32
 	wantLastPingTime    time.Time
 	wantLastPingNonce   uint64
@@ -153,8 +154,8 @@ func testPeer(t *testing.T, p *peer.Peer, s peerStats) {
 		return
 	}
 
-	if p.LastBlock() != s.wantLastBlock {
-		t.Errorf("testPeer: wrong LastBlock - got %v, want %v", p.LastBlock(), s.wantLastBlock)
+	if p.MaxBlockHeight() != s.wantMaxBlockHeight {
+		t.Errorf("testPeer: wrong MaxBlockHeight - got %v, want %v", p.MaxBlockHeight(), s.wantMaxBlockHeight)
 		return
 	}
 
@@ -259,8 +260,8 @@ func TestPeerConnection(t *testing.T) {
 		wantLastPingNonce:   uint64(0),
 		wantLastPingMicros:  int64(0),
 		wantTimeOffset:      int64(0),
-		wantBytesSent:       167, // 143 version + 24 verack
-		wantBytesReceived:   167,
+		wantBytesSent:       169, // 145 version + 24 verack
+		wantBytesReceived:   169,
 		wantWitnessEnabled:  false,
 	}
 	wantStats2 := peerStats{
@@ -274,8 +275,8 @@ func TestPeerConnection(t *testing.T) {
 		wantLastPingNonce:   uint64(0),
 		wantLastPingMicros:  int64(0),
 		wantTimeOffset:      int64(0),
-		wantBytesSent:       167, // 143 version + 24 verack
-		wantBytesReceived:   167,
+		wantBytesSent:       169, // 145 version + 24 verack
+		wantBytesReceived:   169,
 		wantWitnessEnabled:  true,
 	}
 
@@ -613,7 +614,7 @@ func TestOutboundPeer(t *testing.T) {
 
 	peerCfg := &peer.Config{
 		NewestBlock: func() (*chainhash.Hash, int32, error) {
-			return nil, 0, errors.New("newest block not found")
+			return nil, 0, errors.New("newest blocks not found")
 		},
 		UserAgentName:     "peer",
 		UserAgentVersion:  "1.0",
@@ -655,7 +656,7 @@ func TestOutboundPeer(t *testing.T) {
 
 	// Test Queue Inv
 	fakeBlockHash := &chainhash.Hash{0: 0x00, 1: 0x01}
-	fakeInv := wire.NewInvVect(wire.InvTypeBlock, fakeBlockHash)
+	fakeInv := wire.NewInvVect(wire.InvTypeBlock, fakeBlockHash, 1)
 
 	// Should be noops as the peer could not connect.
 	p.QueueInventory(fakeInv)
@@ -696,7 +697,7 @@ func TestOutboundPeer(t *testing.T) {
 		return
 	}
 	p1.UpdateLastAnnouncedBlock(latestBlockHash)
-	p1.UpdateLastBlockHeight(234440)
+	p1.UpdateMaxBlockHeight(234440)
 	if p1.LastAnnouncedBlock() != latestBlockHash {
 		t.Errorf("LastAnnouncedBlock: wrong block - got %v, want %v",
 			p1.LastAnnouncedBlock(), latestBlockHash)
