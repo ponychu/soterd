@@ -59,6 +59,16 @@ func NewBlueSetCache() *BlueSetCache {
 	}
 }
 
+func (blueset *BlueSetCache) GetBlueNodes(n *node) []*node {
+
+	set, ok := blueset.cache[n]
+	if !ok {
+		return nil
+	}
+
+	return set.elements()
+}
+
 // implements Algorithm 3 Selection of a blue set of Phantom paper
 func calculateBlueSet(g *Graph, genesisNode *node, k int, blueSetCache *BlueSetCache) *nodeSet {
 	blueSet := newNodeSet()

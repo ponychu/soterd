@@ -265,6 +265,13 @@ var helpDescsEnUS = map[string]string{
 	"getblockverboseresult-weight":            "The weight of the block",
 	"getblockverboseresult-parents":           "The parents of the block, if any",
 
+	// GetDAGColoring
+	"getdagcoloring--synopsis": "Returns the current DAG block coloring and order",
+
+	// GetDAGColoringResult help
+	"getdagcoloringresult-hash": "Block hash",
+	"getdagcoloringresult-isblue": "True is block is in the blue set of the DAG coloring",
+
 	// GetDAGTips
 	"getdagtips--synopsis": "Returns current DAG tip info",
 
@@ -739,6 +746,7 @@ var rpcResultTypes = map[string][]interface{}{
 	"getcfilterheader":      {(*string)(nil)},
 	"getconnectioncount":    {(*int32)(nil)},
 	"getcurrentnet":         {(*uint32)(nil)},
+	"getdagcoloring":    	 {(*[]soterjson.GetDAGColoringResult)(nil)},
 	"getdagtips":     		 {(*soterjson.GetDAGTipsResult)(nil)},
 	"getdifficulty":         {(*float64)(nil)},
 	"getgenerate":           {(*bool)(nil)},

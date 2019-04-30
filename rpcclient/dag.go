@@ -73,3 +73,31 @@ func (c *Client) RenderDagAsync() FutureRenderDagResult {
 func (c *Client) RenderDag() (*soterjson.RenderDagResult, error) {
 	return c.RenderDagAsync().Receive()
 }
+
+// FutureGetDAGColoringResult is a promise to deliver the result of a GetDAGColoringAsync RPC invocation (or error).
+type FutureGetDAGColoringResult chan *response
+
+// Receive waits for the response promised by the future and returns the DAG coloring provided by the RPC server.
+func (r FutureGetDAGColoringResult) Receive() ([]*soterjson.GetDAGColoringResult, error) {
+	res, err := receiveFuture(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var dagColoring []*soterjson.GetDAGColoringResult
+	if err := json.Unmarshal(res, &dagColoring); err != nil {
+		return nil, err
+	}
+	return dagColoring, nil
+}
+
+// GetDAGColoringAsync is the async version of GetDAGColoring.
+func (c *Client) GetDAGColoringAsync() FutureGetDAGColoringResult {
+	cmd := soterjson.NewGetDAGColoringCmd()
+	return c.sendCmd(cmd)
+}
+
+// GetDAGColoring returns the coloring of the block DAG
+func (c *Client) GetDAGColoring() ([]*soterjson.GetDAGColoringResult, error) {
+	return c.GetDAGColoringAsync().Receive()
+}

@@ -107,6 +107,23 @@ func NewGetCurrentNetCmd() *GetCurrentNetCmd {
 	return &GetCurrentNetCmd{}
 }
 
+// GetDAGColoringCmd defines the getdagcoloring JSON-RPC command.
+type GetDAGColoringCmd struct{}
+
+// NewGetDAGColoringCmd returns a new instance which can be used to issue a
+// getdagtips JSON-RPC command.
+func NewGetDAGColoringCmd() *GetDAGColoringCmd {
+	return &GetDAGColoringCmd{}
+}
+// GetDAGTipsCmd defines the getdagtips JSON-RPC command.
+type GetDAGTipsCmd struct{}
+
+// NewGetDAGTipsCmd returns a new instance which can be used to issue a
+// getdagcoloring JSON-RPC command.
+func NewGetDAGTipsCmd() *GetDAGTipsCmd {
+	return &GetDAGTipsCmd{}
+}
+
 // GetHeadersCmd defines the getheaders JSON-RPC command.
 //
 // NOTE: This is a soterd extension ported from
@@ -114,15 +131,6 @@ func NewGetCurrentNetCmd() *GetCurrentNetCmd {
 type GetHeadersCmd struct {
 	BlockLocators []string `json:"blocklocators"`
 	HashStop      string   `json:"hashstop"`
-}
-
-// GetDAGTipsCmd defines the getdagtips JSON-RPC command.
-type GetDAGTipsCmd struct{}
-
-// NewGetDAGTipsCmd returns a new instance which can be used to issue a
-// getdagtips JSON-RPC command.
-func NewGetDAGTipsCmd() *GetDAGTipsCmd {
-	return &GetDAGTipsCmd{}
 }
 
 // NewGetHeadersCmd returns a new instance which can be used to issue a
@@ -177,6 +185,7 @@ func init() {
 	MustRegisterCmd("getbestblock", (*GetBestBlockCmd)(nil), flags)
 	MustRegisterCmd("getblockmetrics", (*GetBlockMetricsCmd)(nil), flags)
 	MustRegisterCmd("getcurrentnet", (*GetCurrentNetCmd)(nil), flags)
+	MustRegisterCmd("getdagcoloring", (*GetDAGColoringCmd)(nil), flags)
 	MustRegisterCmd("getdagtips", (*GetDAGTipsCmd)(nil), flags)
 	MustRegisterCmd("getheaders", (*GetHeadersCmd)(nil), flags)
 	MustRegisterCmd("getlistenaddrs", (*GetListenAddrsCmd)(nil), flags)

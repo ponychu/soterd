@@ -9,12 +9,12 @@ package blockdag
 import (
 	"container/list"
 	"fmt"
-	"github.com/soteria-dag/soterd/blockdag/phantom"
 	"math"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/soteria-dag/soterd/blockdag/phantom"
 	"github.com/soteria-dag/soterd/chaincfg"
 	"github.com/soteria-dag/soterd/chaincfg/chainhash"
 	"github.com/soteria-dag/soterd/database"
@@ -160,6 +160,7 @@ type BlockDAG struct {
 	dView *dagView
 	graph *phantom.Graph
 	blueSet *phantom.BlueSetCache
+	nodeOrder []*chainhash.Hash
 
 	// These fields are related to handling of orphan blocks.  They are
 	// protected by a combination of the chain lock and the orphan lock.
@@ -952,14 +953,18 @@ func (b *BlockDAG) connectBlock(node *blockNode, block *soterutil.Block,
 		genesisHash := b.dView.Genesis().hash.String()
 		sortOrder := phantom.OrderDAG(b.graph, b.graph.GetNodeById(genesisHash), coloringK, b.blueSet)
 
+		// array to save sort order
+		sortedHashes := make([]*chainhash.Hash, len(sortOrder))
+
 		// generate new utxo set (from genesis to tips)
 		// jenlouie: view will contain all tx, this might take too much space
 		// might have to save utxo set to db, then load it back out every so often
-		for _, node := range sortOrder {
+		for i, node := range sortOrder {
 			blockHash, err := chainhash.NewHashFromStr(node.GetId())
 			if err != nil {
 				return err
 			}
+			sortedHashes[i] = blockHash
 
 			var soterBlock *soterutil.Block
 			if block.Hash().IsEqual(blockHash) {
@@ -976,6 +981,8 @@ func (b *BlockDAG) connectBlock(node *blockNode, block *soterutil.Block,
 				return err
 			}
 		}
+
+		b.nodeOrder = sortedHashes
 
 		//err = dbPutUtxoView(dbTx, view)
 		err = dbPutUtxoView(dbTx, newView)
@@ -1641,6 +1648,35 @@ func (b *BlockDAG) DAGSnapshot() *DAGState {
 	return snapshot
 }
 
+// DAGColoring returns the blue set of blocks after coloring is run on the DAG
+// Based on the last block added
+func (b *BlockDAG) DAGColoring() []*chainhash.Hash {
+	b.chainLock.RLock()
+	defer b.chainLock.RUnlock()
+
+	latestBlock := b.BestSnapshot().Hash
+	latestNode := b.graph.GetNodeById(latestBlock.String())
+	blueNodes := b.blueSet.GetBlueNodes(latestNode)
+	if blueNodes != nil {
+		blueHashes := make([]*chainhash.Hash, len(blueNodes))
+		for i, node := range blueNodes {
+			hash, _ := chainhash.NewHashFromStr(node.GetId())
+			blueHashes[i] = hash
+		}
+		return blueHashes
+	}
+
+	return nil
+}
+
+// DAGOrdering returns the ordering of the blocks after the DAG is sorted
+func (b *BlockDAG) DAGOrdering() []*chainhash.Hash {
+	b.chainLock.RLock()
+	defer b.chainLock.RUnlock()
+
+	return b.nodeOrder
+}
+
 // HeaderByHash returns the block header identified by the given hash or an
 // error if it doesn't exist. Note that this will return headers from both the
 // main and side chains.
@@ -2174,6 +2210,7 @@ func New(config *Config) (*BlockDAG, error) {
 		hashCache:           config.HashCache,
 		dView:               newDAGView(nil),
 		graph:               phantom.NewGraph(),
+		nodeOrder:           make([]*chainhash.Hash, 0),
 		blueSet:             phantom.NewBlueSetCache(),
 		orphans:             make(map[chainhash.Hash]*orphanBlock),
 		prevOrphans:         make(map[chainhash.Hash][]*orphanBlock),

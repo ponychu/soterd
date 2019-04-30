@@ -9,13 +9,13 @@ import (
 	"compress/bzip2"
 	"encoding/binary"
 	"fmt"
-	"github.com/soteria-dag/soterd/blockdag/phantom"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/soteria-dag/soterd/blockdag/phantom"
 	"github.com/soteria-dag/soterd/chaincfg"
 	"github.com/soteria-dag/soterd/chaincfg/chainhash"
 	"github.com/soteria-dag/soterd/database"
@@ -290,6 +290,7 @@ func newFakeChain(params *chaincfg.Params) *BlockDAG {
 		dView:               newDAGView([]*blockNode{node}),
 		graph:               phantom.NewGraph(),
 		blueSet:             phantom.NewBlueSetCache(),
+		nodeOrder:           make([]*chainhash.Hash, 0),
 		warningCaches:       newThresholdCaches(vbNumBits),
 		deploymentCaches:    newThresholdCaches(chaincfg.DefinedDeployments),
 	}
