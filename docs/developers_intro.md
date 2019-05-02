@@ -72,7 +72,6 @@ Refer to the [Getting started with Docker](getting_started_docker.md) document f
     ```bash
     $ git clone https://github.com/soteria-dag/soterd $GOPATH/src/github.com/soteria-dag/soterd
     $ cd $GOPATH/src/github.com/soteria-dag/soterd
-    $ git checkout exp0
     $ go get -u github.com/Masterminds/glide
     $ glide install
     $ GO111MODULE=on go install . ./cmd/...
@@ -104,7 +103,7 @@ Refer to the [Getting started with Docker](getting_started_docker.md) document f
 The following command will run a soterd node on testnet
 
 ```bash
-$ ./soterd --testnet
+$ soterd --testnet
 ```
 
 ### Configuring soterd

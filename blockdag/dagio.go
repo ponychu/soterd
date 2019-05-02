@@ -1349,11 +1349,14 @@ func (b *BlockDAG) initChainState() error {
 		// them as valid if they aren't already marked as such.  This
 		// is a safe assumption as all the block before the current tip
 		// are valid by definition.
+		seen := make(map[chainhash.Hash]struct{})
+		exists := struct{}{}
 		for iterNode := b.dView.Tips(); iterNode != nil && len(iterNode) > 0; { //iterNode = iterNode.parent {
 			// If this isn't already marked as valid in the index, then
 			// we'll mark it as valid now to ensure consistency once
 			// we're up and running.
 			parents := make([]*blockNode, 0)
+
 			for _, tipNode := range iterNode {
 				if !tipNode.status.KnownValid() {
 					log.Infof("Block %v (height=%v) ancestor of "+
@@ -1364,7 +1367,11 @@ func (b *BlockDAG) initChainState() error {
 					b.index.SetStatusFlags(tipNode, statusValid)
 				}
 				for _, parent := range tipNode.parents {
-					parents = append(parents, parent)
+					_, seenParent := seen[parent.hash]
+					if !seenParent {
+						parents = append(parents, parent)
+						seen[parent.hash] = exists
+					}
 				}
 			}
 			iterNode = parents

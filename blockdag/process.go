@@ -100,12 +100,21 @@ func (b *BlockDAG) processOrphans(flags BehaviorFlags) (bool, error) {
 	}
 	b.orphanLock.RUnlock()
 
+	checked := make(map[chainhash.Hash]int)
 	for len(orphans) > 0 {
 		orphan := orphans[0]
 		orphans[0] = nil
 		orphans = orphans[1:]
 
 		hash := orphan.block.Hash()
+
+		_, exists := checked[*hash]
+		if exists {
+			// Multiple blocks may have the same parent, but we only need to check them once
+			continue
+		} else {
+			checked[*hash] = 1
+		}
 
 		if !b.IsKnownOrphan(hash) {
 			// Skip an orphan if it was already resolved, but listed more than once in orphan order

@@ -271,6 +271,10 @@ func (node *blockNode) Ancestors(height int32) []*blockNode {
 	}
 
 	parents := node.parents
+	checked := make(map[chainhash.Hash]struct{})
+	for _, parent := range parents {
+		checked[parent.hash] = struct{}{}
+	}
 	parentsHeight := node.parentsMaxHeight()
 	for {
 		if parents == nil || len(parents) == 0 || parentsHeight <= height {
@@ -286,7 +290,11 @@ func (node *blockNode) Ancestors(height int32) []*blockNode {
 			}
 
 			for _, grandParent := range parent.parents {
-				grandParents = append(grandParents, grandParent)
+				_, exists := checked[grandParent.hash]
+				if !exists {
+					grandParents = append(grandParents, grandParent)
+					checked[grandParent.hash] = struct{}{}
+				}
 			}
 		}
 
