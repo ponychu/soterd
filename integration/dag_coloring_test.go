@@ -5,13 +5,13 @@
 // This file is ignored during the regular tests due to the following build tag.
 // +build rpctest dag dagcoloring
 // You can run tests from this file in isolation by using the build tags, like so:
-// go test -v -count=1 -tags "dagcoloring" github.com/soterium/soterd/integration
+// go test -v -count=1 -tags "dagcoloring" github.com/soteria-dag/soterd/integration
 
 package integration
 
 import (
-	"github.com/soterium/soterd/chaincfg"
-	"github.com/soterium/soterd/integration/rpctest"
+	"github.com/soteria-dag/soterd/chaincfg"
+	"github.com/soteria-dag/soterd/integration/rpctest"
 	"testing"
 )
 
