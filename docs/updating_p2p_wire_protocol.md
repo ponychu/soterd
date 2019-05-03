@@ -19,8 +19,9 @@ If modifying the structure of an existing message, this will mean updating the e
 * Files containing pre-generated data that's used as test data in multiple tests
  
 Updating pre-generated test data is the most labour-intensive, because it requires you to have both an old and new implementation of the affected code available.
-* You'll may need to write a golang program that can use the old code and the new code to decode the existing data, update the affected components, and write the new test data back out.
+* You may need to write a golang program that can use the old code and the new code to decode the existing data, update the affected components, and write the new test data back out.
 * Alternatively you could generate a completely new set of test data. It depends on what the test data is for and what expectations the test suites that use it have. 
 
+### Examples of p2p protocol changes
 
 Commit [2e67fd3](https://github.com/soteria-dag/soterd/commit/2e67fd353a400785ebdf4cc1f428e130f050e9a6) implemented a change to the block structure (adding parent sub-header to the block). It covers all of the above points, so it could be used as a reference when considering making updates to the p2p wire protocol. 

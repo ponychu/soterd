@@ -33,7 +33,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	// Ensure we get the correct data back out.
-	msg := NewMsgVersion(me, you, nonce, lastBlock)
+	msg := NewMsgVersion(me, you, nonce, lastBlock, &simNetGenHash)
 	if msg.ProtocolVersion != int32(pver) {
 		t.Errorf("NewMsgVersion: wrong protocol version - got %v, want %v",
 			msg.ProtocolVersion, pver)
@@ -137,7 +137,7 @@ func TestVersionWire(t *testing.T) {
 	verRelayTxFalse.DisableRelayTx = true
 	verRelayTxFalseEncoded := make([]byte, len(baseVersionBIP0037Encoded))
 	copy(verRelayTxFalseEncoded, baseVersionBIP0037Encoded)
-	verRelayTxFalseEncoded[len(verRelayTxFalseEncoded)-1] = 0
+	verRelayTxFalseEncoded[len(verRelayTxFalseEncoded) - 1] = 0
 
 	tests := []struct {
 		in   *MsgVersion     // Message to encode
@@ -310,13 +310,15 @@ func TestVersionWireErrors(t *testing.T) {
 		{baseVersion, baseVersionEncoded, pver, BaseEncoding, 81, io.ErrShortWrite, io.EOF},
 		// Force error in user agent.
 		{baseVersion, baseVersionEncoded, pver, BaseEncoding, 82, io.ErrShortWrite, io.ErrUnexpectedEOF},
-		// Force error in last block.
+		// Force error in genesis hash
 		{baseVersion, baseVersionEncoded, pver, BaseEncoding, 98, io.ErrShortWrite, io.ErrUnexpectedEOF},
+		// Force error in last block.
+		{baseVersion, baseVersionEncoded, pver, BaseEncoding, 130, io.ErrShortWrite, io.ErrUnexpectedEOF},
 		// Force error in relay tx - no read error should happen since
 		// it's optional.
 		{
 			baseVersionBIP0037, baseVersionBIP0037Encoded,
-			BIP0037Version, BaseEncoding, 103, io.ErrShortWrite, nil,
+			BIP0037Version, BaseEncoding, 135, io.ErrShortWrite, nil,
 		},
 		// Force error due to user agent too big
 		{exceedUAVer, exceedUAVerEncoded, pver, BaseEncoding, newLen, wireErr, wireErr},
@@ -381,7 +383,7 @@ func TestVersionOptionalFields(t *testing.T) {
 			Port:      8333,
 		},
 	}
-	onlyRequiredVersionEncoded := make([]byte, len(baseVersionEncoded)-57)
+	onlyRequiredVersionEncoded := make([]byte, len(baseVersionEncoded) - 89)
 	copy(onlyRequiredVersionEncoded, baseVersionEncoded)
 
 	// addrMeVersion is a version message that contains all fields through
@@ -393,26 +395,33 @@ func TestVersionOptionalFields(t *testing.T) {
 		IP:        net.ParseIP("127.0.0.1"),
 		Port:      8333,
 	}
-	addrMeVersionEncoded := make([]byte, len(baseVersionEncoded)-31)
+	addrMeVersionEncoded := make([]byte, len(baseVersionEncoded) - 63)
 	copy(addrMeVersionEncoded, baseVersionEncoded)
 
 	// nonceVersion is a version message that contains all fields through
 	// the Nonce field.
 	nonceVersion := addrMeVersion
 	nonceVersion.Nonce = 123123 // 0x1e0f3
-	nonceVersionEncoded := make([]byte, len(baseVersionEncoded)-23)
+	nonceVersionEncoded := make([]byte, len(baseVersionEncoded) - 55)
 	copy(nonceVersionEncoded, baseVersionEncoded)
 
 	// uaVersion is a version message that contains all fields through
 	// the UserAgent field.
 	uaVersion := nonceVersion
 	uaVersion.UserAgent = "/soterdtest:0.0.1/"
-	uaVersionEncoded := make([]byte, len(baseVersionEncoded)-4)
+	uaVersionEncoded := make([]byte, len(baseVersionEncoded) - 36)
 	copy(uaVersionEncoded, baseVersionEncoded)
+
+	// genHashVersion is a version message that contains all fields
+	// through the GenesisHash field
+	genHashVersion := uaVersion
+	genHashVersion.GenesisHash = simNetGenHash
+	genHashVersionEncoded := make([]byte, len(baseVersionEncoded) - 4)
+	copy(genHashVersionEncoded, baseVersionEncoded)
 
 	// lastBlockVersion is a version message that contains all fields
 	// through the LastBlock field.
-	lastBlockVersion := uaVersion
+	lastBlockVersion := genHashVersion
 	lastBlockVersion.LastBlock = 234234 // 0x392fa
 	lastBlockVersionEncoded := make([]byte, len(baseVersionEncoded))
 	copy(lastBlockVersionEncoded, baseVersionEncoded)
@@ -448,6 +457,12 @@ func TestVersionOptionalFields(t *testing.T) {
 			BaseEncoding,
 		},
 		{
+			&genHashVersion,
+			genHashVersionEncoded,
+			ProtocolVersion,
+			BaseEncoding,
+		},
+		{
 			&lastBlockVersion,
 			lastBlockVersionEncoded,
 			ProtocolVersion,
@@ -472,6 +487,13 @@ func TestVersionOptionalFields(t *testing.T) {
 	}
 }
 
+var simNetGenHash = [32]byte{
+0xb2, 0x6c, 0xaf, 0xeb, 0x6b, 0xdd, 0x5c, 0xd9,
+0xd3, 0x15, 0x4b, 0x55, 0x6c, 0xc3, 0x96, 0x95,
+0xd2, 0x54, 0x51, 0x99, 0x62, 0x8c, 0x30, 0xdf,
+0x8a, 0x80, 0xd5, 0xf5, 0xc9, 0x94, 0x26, 0x5f,
+}
+
 // baseVersion is used in the various tests as a baseline MsgVersion.
 var baseVersion = &MsgVersion{
 	ProtocolVersion: 60002,
@@ -492,6 +514,7 @@ var baseVersion = &MsgVersion{
 	Nonce:     123123, // 0x1e0f3
 	UserAgent: "/soterdtest:0.0.1/",
 	LastBlock: 234234, // 0x392fa
+	GenesisHash: simNetGenHash,
 }
 
 // baseVersionEncoded is the wire encoded bytes for baseVersion using protocol
@@ -515,6 +538,10 @@ var baseVersionEncoded = []byte{
 	0x2f, 0x73, 0x6f, 0x74, 0x65, 0x72, 0x64, 0x74,
 	0x65, 0x73, 0x74, 0x3a, 0x30, 0x2e, 0x30, 0x2e,
 	0x31, 0x2f, // User agent
+	0xb2, 0x6c, 0xaf, 0xeb, 0x6b, 0xdd, 0x5c, 0xd9,
+	0xd3, 0x15, 0x4b, 0x55, 0x6c, 0xc3, 0x96, 0x95,
+	0xd2, 0x54, 0x51, 0x99, 0x62, 0x8c, 0x30, 0xdf,
+	0x8a, 0x80, 0xd5, 0xf5, 0xc9, 0x94, 0x26, 0x5f, // GenesisHash
 	0xfa, 0x92, 0x03, 0x00, // Last block
 }
 
@@ -539,6 +566,7 @@ var baseVersionBIP0037 = &MsgVersion{
 	Nonce:     123123, // 0x1e0f3
 	UserAgent: "/soterdtest:0.0.1/",
 	LastBlock: 234234, // 0x392fa
+	GenesisHash: simNetGenHash,
 }
 
 // baseVersionBIP0037Encoded is the wire encoded bytes for baseVersionBIP0037
@@ -562,6 +590,10 @@ var baseVersionBIP0037Encoded = []byte{
 	0x2f, 0x73, 0x6f, 0x74, 0x65, 0x72, 0x64, 0x74,
 	0x65, 0x73, 0x74, 0x3a, 0x30, 0x2e, 0x30, 0x2e,
 	0x31, 0x2f, // User agent
+	0xb2, 0x6c, 0xaf, 0xeb, 0x6b, 0xdd, 0x5c, 0xd9,
+	0xd3, 0x15, 0x4b, 0x55, 0x6c, 0xc3, 0x96, 0x95,
+	0xd2, 0x54, 0x51, 0x99, 0x62, 0x8c, 0x30, 0xdf,
+	0x8a, 0x80, 0xd5, 0xf5, 0xc9, 0x94, 0x26, 0x5f, // GenesisHash
 	0xfa, 0x92, 0x03, 0x00, // Last block
 	0x01, // Relay tx
 }

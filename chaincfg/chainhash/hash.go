@@ -12,6 +12,8 @@ import (
 )
 
 // HashSize of array used to store hashes.  See Hash.
+// NOTE(cedric): If you change this value, you'll also need to update the GenesisHash field
+// of the type wire.MsgVersion type to match.
 const HashSize = 32
 
 // MaxHashStringSize is the maximum length of a Hash hash string.
@@ -44,6 +46,18 @@ func (hash *Hash) CloneBytes() []byte {
 	copy(newHash, hash[:])
 
 	return newHash
+}
+
+// CloneBytes32 returns a copy of bytes representing the hash, as [HashSize]byte slice.
+//
+// This is used when creating version messages, for the GenesisHash field. [HashSize]byte
+// instead of chainhash.Hash is used in version messages to avoid a circular import
+// dependency between wire and chaincfg packages.
+func (hash *Hash) CloneBytes32() [HashSize]byte {
+	var b [HashSize]byte
+	copy(b[:], hash[:])
+
+	return b
 }
 
 // SetBytes sets the bytes which represent the hash.  An error is returned if
