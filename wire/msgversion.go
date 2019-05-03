@@ -11,6 +11,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/blang/semver"
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
@@ -18,7 +20,7 @@ import (
 const MaxUserAgentLen = 256
 
 // DefaultUserAgent for wire in the stack
-const DefaultUserAgent = "/soterwire:0.5.0/"
+const DefaultUserAgent = "/soterwire:0.6.0/"
 
 // MsgVersion implements the Message interface and represents a soter token (SOTO) version
 // message.  It is used for a peer to advertise itself as soon as an outbound
@@ -289,4 +291,54 @@ func (msg *MsgVersion) AddUserAgent(name string, version string,
 	}
 	msg.UserAgent = newUserAgent
 	return nil
+}
+
+// UserAgentToSemVer returns a the user agent name and semantic version, for the soterd-style User Agent string
+func UserAgentToSemVer(ua string) (string, semver.Version, error) {
+	var name, ver string
+	// The format the soterd user agent strings take is:
+	// userAgentName:userAgentVersion
+	//
+	// and may have optional comments in parentheses, separated by semi-colons:
+	//
+	// userAgentName:userAgentVersion(comment1; comment2)
+	if strings.Contains(ua, ":") {
+		parts := strings.SplitN(ua, ":", 2)
+		n, rest := parts[0], parts[1]
+		name = n
+		if strings.Contains(rest, "(") {
+			parts := strings.SplitN(rest, "(", 2)
+			ver = parts[0]
+		} else {
+			ver = rest
+		}
+	} else {
+		ver = ua
+	}
+
+	version, err := semver.Parse(ver)
+	return name, version, err
+}
+
+// ParseUserAgentSemVers returns a map of User Agents to Semantic Version of those user agents found in the string
+func ParseUserAgentSemVers(s string) map[string]semver.Version {
+	vers := make(map[string]semver.Version)
+
+	// The string used for soterd user agent may have multiple records in it, separated by slashes:
+	// soterwire:0.6.0/soterd:1.0.0/
+	for _, ua := range strings.Split(s, "/") {
+		name, version, err := UserAgentToSemVer(ua)
+		if err != nil {
+			continue
+		}
+
+		vers[name] = version
+	}
+
+	return vers
+}
+
+// UserAgents returns a map of User Agents to Semantic Versions, for the user agents in this version message.
+func (msg *MsgVersion) UserAgents() map[string]semver.Version {
+	return ParseUserAgentSemVers(msg.UserAgent)
 }

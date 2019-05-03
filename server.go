@@ -68,7 +68,7 @@ var (
 
 	// userAgentVersion is the user agent version and is used to help
 	// identify ourselves to other soter peers.
-	userAgentVersion = fmt.Sprintf("%d.%d.%d", appMajor, appMinor, appPatch)
+	userAgentVersion = version
 )
 
 // zeroHash is the zero value hash (all zeros).  It is defined as a convenience.
