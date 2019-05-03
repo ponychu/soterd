@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/btcsuite/go-socks/socks"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/soteria-dag/soterd/blockdag"
@@ -247,7 +248,7 @@ type Config struct {
 	// UserAgentVersion specifies the user agent version to advertise.  It
 	// is highly recommended to specify this value and that it follows the
 	// form "major.minor.revision" e.g. "2.6.41".
-	UserAgentVersion string
+	UserAgentVersion semver.Version
 
 	// UserAgentComments specify the user agent comments to advertise.  These
 	// values must not contain the illegal characters specified in BIP 14:
@@ -1937,6 +1938,14 @@ func (p *Peer) handleRemoteVersionMsg(msg *wire.MsgVersion) error {
 		}
 	}
 
+	// Disconnect from peers that are using an incompatible version
+	agents := msg.UserAgents()
+	remoteVer, exists := agents[p.cfg.UserAgentName]
+	if exists && remoteVer.Major != p.cfg.UserAgentVersion.Major {
+		reason := fmt.Sprintf("peer version %s is incompatible with our version %s", remoteVer, p.cfg.UserAgentVersion)
+		return errors.New(reason)
+	}
+
 	// Notify and disconnect clients that have a protocol version that is
 	// too old.
 	//
@@ -2073,7 +2082,7 @@ func (p *Peer) localVersionMsg() (*wire.MsgVersion, error) {
 
 	// Version message.
 	msg := wire.NewMsgVersion(ourNA, theirNA, nonce, blockNum, &genHash)
-	err := msg.AddUserAgent(p.cfg.UserAgentName, p.cfg.UserAgentVersion,
+	err := msg.AddUserAgent(p.cfg.UserAgentName, p.cfg.UserAgentVersion.String(),
 		p.cfg.UserAgentComments...)
 	if err != nil {
 		return nil, err

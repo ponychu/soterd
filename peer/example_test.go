@@ -10,6 +10,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/soteria-dag/soterd/chaincfg"
 	"github.com/soteria-dag/soterd/peer"
 	"github.com/soteria-dag/soterd/wire"
@@ -22,7 +23,7 @@ func mockRemotePeer() error {
 	// Configure peer to act as a simnet node that offers no services.
 	peerCfg := &peer.Config{
 		UserAgentName:    "peer",  // User agent name to advertise.
-		UserAgentVersion: "1.0.0", // User agent version to advertise.
+		UserAgentVersion: semver.Version{Major:1, Minor: 0, Patch: 0}, // User agent version to advertise.
 		ChainParams:      &chaincfg.SimNetParams,
 		TrickleInterval:  time.Second * 10,
 	}
@@ -68,7 +69,7 @@ func Example_newOutboundPeer() {
 	verack := make(chan struct{})
 	peerCfg := &peer.Config{
 		UserAgentName:    "peer",  // User agent name to advertise.
-		UserAgentVersion: "1.0.0", // User agent version to advertise.
+		UserAgentVersion: semver.Version{Major:1, Minor: 0, Patch: 0}, // User agent version to advertise.
 		ChainParams:      &chaincfg.SimNetParams,
 		Services:         0,
 		TrickleInterval:  time.Second * 10,
