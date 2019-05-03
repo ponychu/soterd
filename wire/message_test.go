@@ -47,7 +47,17 @@ func TestMessage(t *testing.T) {
 	addrMe := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8333}
 	me := NewNetAddress(addrMe, SFNodeNetwork)
 	me.Timestamp = time.Time{} // Version message has zero value timestamp.
-	msgVersion := NewMsgVersion(me, you, 123123, 0)
+
+	// Simnet bytes are redefined here instead of using chaincfg.SimNetParams.GenesisHash,
+	// to avoid a circular dependency between wire and chaincfg packages
+	simNetGenHash := [32]byte{
+		0xb2, 0x6c, 0xaf, 0xeb, 0x6b, 0xdd, 0x5c, 0xd9,
+		0xd3, 0x15, 0x4b, 0x55, 0x6c, 0xc3, 0x96, 0x95,
+		0xd2, 0x54, 0x51, 0x99, 0x62, 0x8c, 0x30, 0xdf,
+		0x8a, 0x80, 0xd5, 0xf5, 0xc9, 0x94, 0x26, 0x5f,
+	}
+
+	msgVersion := NewMsgVersion(me, you, 123123, 0, &simNetGenHash)
 
 	msgVerack := NewMsgVerAck()
 	msgGetAddr := NewMsgGetAddr()
@@ -85,7 +95,7 @@ func TestMessage(t *testing.T) {
 		soternet SoterNet // Network to use for wire encoding
 		bytes    int      // Expected num bytes read/written
 	}{
-		{msgVersion, msgVersion, pver, MainNet, 127},
+		{msgVersion, msgVersion, pver, MainNet, 159},
 		{msgVerack, msgVerack, pver, MainNet, 24},
 		{msgGetAddr, msgGetAddr, pver, MainNet, 24},
 		{msgAddr, msgAddr, pver, MainNet, 25},

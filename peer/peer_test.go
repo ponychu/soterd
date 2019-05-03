@@ -260,8 +260,8 @@ func TestPeerConnection(t *testing.T) {
 		wantLastPingNonce:   uint64(0),
 		wantLastPingMicros:  int64(0),
 		wantTimeOffset:      int64(0),
-		wantBytesSent:       169, // 145 version + 24 verack
-		wantBytesReceived:   169,
+		wantBytesSent:       201, // 177 version + 24 verack
+		wantBytesReceived:   201,
 		wantWitnessEnabled:  false,
 	}
 	wantStats2 := peerStats{
@@ -275,8 +275,8 @@ func TestPeerConnection(t *testing.T) {
 		wantLastPingNonce:   uint64(0),
 		wantLastPingMicros:  int64(0),
 		wantTimeOffset:      int64(0),
-		wantBytesSent:       169, // 145 version + 24 verack
-		wantBytesReceived:   169,
+		wantBytesSent:       201, // 177 version + 24 verack
+		wantBytesReceived:   201,
 		wantWitnessEnabled:  true,
 	}
 
@@ -779,6 +779,7 @@ func TestUnsupportedVersionPeer(t *testing.T) {
 		&conn{laddr: "10.0.0.1:8333", raddr: "10.0.0.2:8333"},
 		&conn{laddr: "10.0.0.2:8333", raddr: "10.0.0.1:8333"},
 	)
+	genHash := peerCfg.ChainParams.GenesisHash.CloneBytes32()
 
 	p, err := peer.NewOutboundPeer(peerCfg, "10.0.0.1:8333")
 	if err != nil {
@@ -819,13 +820,122 @@ func TestUnsupportedVersionPeer(t *testing.T) {
 	}
 
 	// Remote peer writes version message advertising invalid protocol version 1
-	invalidVersionMsg := wire.NewMsgVersion(remoteNA, localNA, 0, 0)
+	invalidVersionMsg := wire.NewMsgVersion(remoteNA, localNA, 0, 0, &genHash)
 	invalidVersionMsg.ProtocolVersion = 1
 
 	_, err = wire.WriteMessageN(
 		remoteConn.Writer,
 		invalidVersionMsg,
 		uint32(invalidVersionMsg.ProtocolVersion),
+		peerCfg.ChainParams.Net,
+	)
+	if err != nil {
+		t.Fatalf("wire.WriteMessageN: unexpected err - %v\n", err)
+	}
+
+	// Expect peer to disconnect automatically
+	disconnected := make(chan struct{})
+	go func() {
+		p.WaitForDisconnect()
+		disconnected <- struct{}{}
+	}()
+
+	select {
+	case <-disconnected:
+		close(disconnected)
+	case <-time.After(time.Second):
+		t.Fatal("Peer did not automatically disconnect")
+	}
+
+	// Expect no further outbound messages from peer
+	select {
+	case msg, chanOpen := <-outboundMessages:
+		if chanOpen {
+			t.Fatalf("Expected no further messages, received [%s]", msg.Command())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Timeout waiting for remote reader to close")
+	}
+}
+
+// TestMismatchedGenesisBlock tests that the node disconnects from peers with a different genesis block
+func TestMismatchedGenesisBlock(t *testing.T) {
+	peerCfg := &peer.Config{
+		UserAgentName:     "peer",
+		UserAgentVersion:  "1.0",
+		UserAgentComments: []string{"comment"},
+		ChainParams:       &chaincfg.MainNetParams,
+		Services:          0,
+		TrickleInterval:   time.Second * 10,
+	}
+
+	localNA := wire.NewNetAddressIPPort(
+		net.ParseIP("10.0.0.1"),
+		uint16(8333),
+		wire.SFNodeNetwork,
+	)
+	remoteNA := wire.NewNetAddressIPPort(
+		net.ParseIP("10.0.0.2"),
+		uint16(8333),
+		wire.SFNodeNetwork,
+	)
+	localConn, remoteConn := pipe(
+		&conn{laddr: "10.0.0.1:8333", raddr: "10.0.0.2:8333"},
+		&conn{laddr: "10.0.0.2:8333", raddr: "10.0.0.1:8333"},
+	)
+
+	p, err := peer.NewOutboundPeer(peerCfg, "10.0.0.1:8333")
+	if err != nil {
+		t.Fatalf("NewOutboundPeer: unexpected err - %v\n", err)
+	}
+	p.AssociateConnection(localConn)
+
+	// Read outbound messages to peer into a channel
+	outboundMessages := make(chan wire.Message)
+	go func() {
+		for {
+			_, msg, _, err := wire.ReadMessageN(
+				remoteConn,
+				p.ProtocolVersion(),
+				peerCfg.ChainParams.Net,
+			)
+			if err == io.EOF {
+				close(outboundMessages)
+				return
+			}
+			if err != nil {
+				t.Errorf("Error reading message from local node: %v\n", err)
+				return
+			}
+
+			outboundMessages <- msg
+		}
+	}()
+
+	// Read version message sent to remote peer
+	select {
+	case msg := <-outboundMessages:
+		if _, ok := msg.(*wire.MsgVersion); !ok {
+			t.Fatalf("Expected version message, got [%s]", msg.Command())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Peer did not send version message")
+	}
+
+	otherGenHash := [32]byte{
+		0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0,
+		0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0,
+		0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0,
+		0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0, 0xda, 0xb0,
+	}
+
+	// Remote peer writes version message advertising a different genesis hash
+	remoteMsg := wire.NewMsgVersion(remoteNA, localNA, 0, 0, &otherGenHash)
+
+	_, err = wire.WriteMessageN(
+		remoteConn.Writer,
+		remoteMsg,
+		uint32(remoteMsg.ProtocolVersion),
 		peerCfg.ChainParams.Net,
 	)
 	if err != nil {

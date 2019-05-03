@@ -1928,6 +1928,15 @@ func (p *Peer) handleRemoteVersionMsg(msg *wire.MsgVersion) error {
 		return errors.New("disconnecting peer connected to self")
 	}
 
+	// Disconnect from peers that are using a different genesis block
+	genHash, err := chainhash.NewHash(msg.GenesisHash[:])
+	if err == nil {
+		if !genHash.IsEqual(p.cfg.ChainParams.GenesisHash) {
+			reason := fmt.Sprintf("peer genesis block hash different from ours (%s != %s)", genHash, p.cfg.ChainParams.GenesisHash)
+			return errors.New(reason)
+		}
+	}
+
 	// Notify and disconnect clients that have a protocol version that is
 	// too old.
 	//
@@ -2059,10 +2068,16 @@ func (p *Peer) localVersionMsg() (*wire.MsgVersion, error) {
 	nonce := uint64(rand.Int63())
 	sentNonces.Add(nonce)
 
+	// Get the bytes of the genesis hash
+	genHash := p.cfg.ChainParams.GenesisHash.CloneBytes32()
+
 	// Version message.
-	msg := wire.NewMsgVersion(ourNA, theirNA, nonce, blockNum)
-	msg.AddUserAgent(p.cfg.UserAgentName, p.cfg.UserAgentVersion,
+	msg := wire.NewMsgVersion(ourNA, theirNA, nonce, blockNum, &genHash)
+	err := msg.AddUserAgent(p.cfg.UserAgentName, p.cfg.UserAgentVersion,
 		p.cfg.UserAgentComments...)
+	if err != nil {
+		return nil, err
+	}
 
 	// XXX: bitcoind appears to always enable the full node services flag
 	// of the remote peer netaddress field in the version message regardless

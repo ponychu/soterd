@@ -51,6 +51,11 @@ type MsgVersion struct {
 	// on the wire.  This has a max length of MaxUserAgentLen.
 	UserAgent string
 
+	// Hash of the genesis block we're using, as bytes.
+	// We represent it as bytes here instead of chainhash.Hash, to avoid a circular import
+	// dependency between chaincfg and wire packages.
+	GenesisHash [32]byte
+
 	// Last block seen by the generator of the version message.
 	LastBlock int32
 
@@ -122,6 +127,15 @@ func (msg *MsgVersion) SotoDecode(r io.Reader, pver uint32, enc MessageEncoding)
 		msg.UserAgent = userAgent
 	}
 
+	// Genesis hash was added to version message, to help clients disconnect from peers with different genesis blocks.
+	// Its intended use is when a node connects to a testnet under active development.
+	if buf.Len() > 0 {
+		err = readElement(buf, &msg.GenesisHash)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Protocol versions >= 209 added a last known block field.  It is only
 	// considered present if there are bytes remaining in the message.
 	if buf.Len() > 0 {
@@ -141,7 +155,7 @@ func (msg *MsgVersion) SotoDecode(r io.Reader, pver uint32, enc MessageEncoding)
 		// field is true when transactions should be relayed, so reverse
 		// it for the DisableRelayTx field.
 		var relayTx bool
-		readElement(r, &relayTx)
+		_ = readElement(buf, &relayTx)
 		msg.DisableRelayTx = !relayTx
 	}
 
@@ -178,6 +192,11 @@ func (msg *MsgVersion) SotoEncode(w io.Writer, pver uint32, enc MessageEncoding)
 	}
 
 	err = WriteVarString(w, pver, msg.UserAgent)
+	if err != nil {
+		return err
+	}
+
+	err = writeElement(w, msg.GenesisHash)
 	if err != nil {
 		return err
 	}
@@ -222,7 +241,7 @@ func (msg *MsgVersion) MaxPayloadLength(pver uint32) uint32 {
 // Message interface using the passed parameters and defaults for the remaining
 // fields.
 func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
-	lastBlock int32) *MsgVersion {
+	lastBlock int32, genesisHash *[32]byte) *MsgVersion {
 
 	// Limit the timestamp to one second precision since the protocol
 	// doesn't support better.
@@ -234,6 +253,9 @@ func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
 		AddrMe:          *me,
 		Nonce:           nonce,
 		UserAgent:       DefaultUserAgent,
+		// bytes are used here instead of chainhash.Hash, to avoid a circular import
+		// dependency between chaincfg and wire packages.
+		GenesisHash: *genesisHash,
 		LastBlock:       lastBlock,
 		DisableRelayTx:  false,
 	}
