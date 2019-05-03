@@ -60,15 +60,29 @@ func absInt32(x int32) int32 {
 	}
 }
 
-// We'll provide renderDagsDot with a function for picking colours of blocks.
+// We'll provide renderDagsDot with a function for picking colors of blocks.
 //
-// The colourPicker should return a string in the graphviz format:
+// The colorPicker should return a string in the graphviz format:
 // #rrggbb, where rr is 2 hex characters for red, gg is 2 hex characters for green, bb is 2 hex characters for blue.
-func colourPicker (v int) string {
-	colour := chart.GetAlternateColor(v)
-	// Slice of bytes is used here instead of int value of colour, so that Sprintf
+func colorPicker (v int) string {
+	color := chart.GetAlternateColor(v)
+	// Slice of bytes is used here instead of int value of color, so that Sprintf
 	// uses 2 characters per byte instead of 1, which is what the graphviz format wants.
-	return fmt.Sprintf("#%x%x%x", []byte{colour.R}, []byte{colour.G}, []byte{colour.B})
+	return fmt.Sprintf("#%x%x%x", []byte{color.R}, []byte{color.G}, []byte{color.B})
+}
+
+
+// We'll provide renderDagsDot with a function for picking style of the blocks.
+//
+// The stylePicker should return a string in the graphviz format:
+// "filled" if input is true, or 
+// "filled, dashed" if otherwise
+func stylePicker (v bool) string {
+
+	if (v) {
+		return "filled"
+	} 	
+	return "filled, dashed"
 }
 
 // keys returns the keys for the map of integers
@@ -199,7 +213,7 @@ func RenderDagsDot(nodes []*Harness) ([]byte, error) {
 	// How many characters of a hash string to use for the 'label' of a block in the graph
 	smallHashLen := 7
 
-	// Map blocks to the nodes that created them. This will be used to colour blocks in dag
+	// Map blocks to the nodes that created them. This will be used to color blocks in dag
 	blockCreator := make(map[string]int)
 	for i, n := range nodes {
 		resp, err := n.Node.GetBlockMetrics()
@@ -212,7 +226,7 @@ func RenderDagsDot(nodes []*Harness) ([]byte, error) {
 		}
 	}
 
-	// We'll use the first node for the dag, and metrics from all nodes for block colouring
+	// We'll use the first node for the dag, and metrics from all nodes for block coloring
 	node := nodes[0]
 	tips, err := node.Node.GetDAGTips()
 	if err != nil {
@@ -244,6 +258,18 @@ func RenderDagsDot(nodes []*Harness) ([]byte, error) {
 		dag = append(dag, blocks)
 	}
 
+	// Build a map of Block coloring Results 
+	dagcoloring, err := node.Node.GetDAGColoring()
+	if err != nil {
+		return dot.Bytes(), err
+	}
+	blockcoloring := make(map[string]bool)
+	for _, dagNode := range dagcoloring {
+		hash := dagNode.Hash
+		coloring := dagNode.IsBlue
+		blockcoloring[hash] = coloring
+	}
+
 	// Express dag in DOT file format
 
 	// graphIndex tracks block hash -> graph node number, which is used to connect parent-child blocks together.
@@ -264,17 +290,23 @@ func RenderDagsDot(nodes []*Harness) ([]byte, error) {
 			smallHashIndex := len(hash) - smallHashLen
 			graphIndex[hash] = n
 
+			// determine the coloring of the block and fetch the style string: default, "filled" or "filled,dashed"
+			dagcoloring := blockcoloring[hash]
+			style := stylePicker(dagcoloring)
+
 			creator, exists := blockCreator[hash]
+
 			var err error
 			if exists {
-				// Colour this block based on which miner created it
-				colour := colourPicker(creator)
-				_, err = fmt.Fprintf(&dot, "n%d [label=\"%s\", tooltip=\"node %d height %d hash %s\", fillcolor=\"%s\", style=filled];\n",
-					n, hash[smallHashIndex:], creator, height, hash, colour)
+				// color this block based on which miner created it
+
+				color := colorPicker(creator)
+				_, err = fmt.Fprintf(&dot, "n%d [label=\"%s\", tooltip=\"node %d height %d hash %s\", fillcolor=\"%s\", style=\"%s\"];\n",
+					n, hash[smallHashIndex:], creator, height, hash, color, style)
 			} else {
-				// No colour for this block
-				_, err = fmt.Fprintf(&dot, "n%d [label=\"%s\", tooltip=\"height %d hash %s\"];\n",
-					n, hash[smallHashIndex:], height, hash)
+				// No color for this block
+				_, err = fmt.Fprintf(&dot, "n%d [label=\"%s\", tooltip=\"height %d hash %s\", style=\"%s\"];\n",
+					n, hash[smallHashIndex:], height, hash, style)
 			}
 			if err != nil {
 				return dot.Bytes(), err
