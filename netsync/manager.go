@@ -1152,6 +1152,11 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 		peer.UpdateMaxBlockHeight(maxHeight)
 	}
 
+	// If we're in sync mode but have caught up to our sync-peer, exit sync mode
+	if sm.syncPeer != nil && sm.chain.DAGSnapshot().MaxHeight >= sm.syncPeer.MaxBlockHeight() {
+		sm.stopSync()
+	}
+
 	// If we're in sync mode, don't process inventory messages from non-sync peers
 	if sm.syncPeer != nil && peer != sm.syncPeer {
 		log.Warnf("Ignoring inv message from peer %v MaxBlockHeight %v (syncPeer %v, MaxBlockHeight %v), because we are in sync mode",

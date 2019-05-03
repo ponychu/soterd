@@ -279,7 +279,7 @@ func readElement(r io.Reader, element interface{}) error {
 		}
 		return nil
 
-	// Parent meta-data
+	// Parent meta-data or chainhash bytes
 	case *[32]byte:
 		_, err := io.ReadFull(r, e[:])
 		if err != nil {
@@ -421,7 +421,7 @@ func writeElement(w io.Writer, element interface{}) error {
 		}
 		return nil
 
-	// Parent meta-data
+	// Parent meta-data or chainhash bytes
 	case [32]byte:
 		_, err := w.Write(e[:])
 		if err != nil {

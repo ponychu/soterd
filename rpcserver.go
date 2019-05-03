@@ -2436,7 +2436,7 @@ func handleGetInfo(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (in
 	best := s.cfg.Chain.BestSnapshot()
 	dagState := s.cfg.Chain.DAGSnapshot()
 	ret := &soterjson.InfoChainResult{
-		Version:         int32(1000000*appMajor + 10000*appMinor + 100*appPatch),
+		Version:         int32(1000000*version.Major + 10000*version.Minor + 100*version.Patch),
 		ProtocolVersion: int32(maxProtocolVersion),
 		Blocks:          int32(dagState.BlkCount),
 		TimeOffset:      int64(s.cfg.TimeSource.Offset().Seconds()),

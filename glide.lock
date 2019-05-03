@@ -1,8 +1,10 @@
-hash: 60836bf42cdada7754bda4d00c65f885ba3e83ad759abca9c1d27fbd57344977
-updated: 2019-04-22T12:59:56.196483287-06:00
+hash: 27f5557ed3d8d5613926f8224229785d6b0d1accc3516eebdcd4780d45c7ea45
+updated: 2019-05-02T23:33:24.470145569-06:00
 imports:
 - name: github.com/aead/siphash
   version: 83563a290f60225eb120d724600b9690c3fb536f
+- name: github.com/blang/semver
+  version: ba2c2ddd89069b46a7011d4106f6868f17ee1705
 - name: github.com/btcsuite/go-socks
   version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
   subpackages:

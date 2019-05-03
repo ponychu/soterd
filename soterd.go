@@ -62,7 +62,7 @@ func soterdMain(serverChan chan<- *server) error {
 	defer soterdLog.Info("Shutdown complete")
 
 	// Show version at startup.
-	soterdLog.Infof("Version %s", version())
+	soterdLog.Infof("Version %s", version)
 
 	// Enable http profiling server if requested.
 	if cfg.Profile != "" {

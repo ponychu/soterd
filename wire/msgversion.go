@@ -11,6 +11,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/blang/semver"
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
@@ -18,7 +20,7 @@ import (
 const MaxUserAgentLen = 256
 
 // DefaultUserAgent for wire in the stack
-const DefaultUserAgent = "/soterwire:0.5.0/"
+const DefaultUserAgent = "/soterwire:0.6.0/"
 
 // MsgVersion implements the Message interface and represents a soter token (SOTO) version
 // message.  It is used for a peer to advertise itself as soon as an outbound
@@ -50,6 +52,11 @@ type MsgVersion struct {
 	// The user agent that generated message.  This is a encoded as a varString
 	// on the wire.  This has a max length of MaxUserAgentLen.
 	UserAgent string
+
+	// Hash of the genesis block we're using, as bytes.
+	// We represent it as bytes here instead of chainhash.Hash, to avoid a circular import
+	// dependency between chaincfg and wire packages.
+	GenesisHash [32]byte
 
 	// Last block seen by the generator of the version message.
 	LastBlock int32
@@ -122,6 +129,15 @@ func (msg *MsgVersion) SotoDecode(r io.Reader, pver uint32, enc MessageEncoding)
 		msg.UserAgent = userAgent
 	}
 
+	// Genesis hash was added to version message, to help clients disconnect from peers with different genesis blocks.
+	// Its intended use is when a node connects to a testnet under active development.
+	if buf.Len() > 0 {
+		err = readElement(buf, &msg.GenesisHash)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Protocol versions >= 209 added a last known block field.  It is only
 	// considered present if there are bytes remaining in the message.
 	if buf.Len() > 0 {
@@ -141,7 +157,7 @@ func (msg *MsgVersion) SotoDecode(r io.Reader, pver uint32, enc MessageEncoding)
 		// field is true when transactions should be relayed, so reverse
 		// it for the DisableRelayTx field.
 		var relayTx bool
-		readElement(r, &relayTx)
+		_ = readElement(buf, &relayTx)
 		msg.DisableRelayTx = !relayTx
 	}
 
@@ -178,6 +194,11 @@ func (msg *MsgVersion) SotoEncode(w io.Writer, pver uint32, enc MessageEncoding)
 	}
 
 	err = WriteVarString(w, pver, msg.UserAgent)
+	if err != nil {
+		return err
+	}
+
+	err = writeElement(w, msg.GenesisHash)
 	if err != nil {
 		return err
 	}
@@ -222,7 +243,7 @@ func (msg *MsgVersion) MaxPayloadLength(pver uint32) uint32 {
 // Message interface using the passed parameters and defaults for the remaining
 // fields.
 func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
-	lastBlock int32) *MsgVersion {
+	lastBlock int32, genesisHash *[32]byte) *MsgVersion {
 
 	// Limit the timestamp to one second precision since the protocol
 	// doesn't support better.
@@ -234,6 +255,9 @@ func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
 		AddrMe:          *me,
 		Nonce:           nonce,
 		UserAgent:       DefaultUserAgent,
+		// bytes are used here instead of chainhash.Hash, to avoid a circular import
+		// dependency between chaincfg and wire packages.
+		GenesisHash: *genesisHash,
 		LastBlock:       lastBlock,
 		DisableRelayTx:  false,
 	}
@@ -267,4 +291,54 @@ func (msg *MsgVersion) AddUserAgent(name string, version string,
 	}
 	msg.UserAgent = newUserAgent
 	return nil
+}
+
+// UserAgentToSemVer returns a the user agent name and semantic version, for the soterd-style User Agent string
+func UserAgentToSemVer(ua string) (string, semver.Version, error) {
+	var name, ver string
+	// The format the soterd user agent strings take is:
+	// userAgentName:userAgentVersion
+	//
+	// and may have optional comments in parentheses, separated by semi-colons:
+	//
+	// userAgentName:userAgentVersion(comment1; comment2)
+	if strings.Contains(ua, ":") {
+		parts := strings.SplitN(ua, ":", 2)
+		n, rest := parts[0], parts[1]
+		name = n
+		if strings.Contains(rest, "(") {
+			parts := strings.SplitN(rest, "(", 2)
+			ver = parts[0]
+		} else {
+			ver = rest
+		}
+	} else {
+		ver = ua
+	}
+
+	version, err := semver.Parse(ver)
+	return name, version, err
+}
+
+// ParseUserAgentSemVers returns a map of User Agents to Semantic Version of those user agents found in the string
+func ParseUserAgentSemVers(s string) map[string]semver.Version {
+	vers := make(map[string]semver.Version)
+
+	// The string used for soterd user agent may have multiple records in it, separated by slashes:
+	// soterwire:0.6.0/soterd:1.0.0/
+	for _, ua := range strings.Split(s, "/") {
+		name, version, err := UserAgentToSemVer(ua)
+		if err != nil {
+			continue
+		}
+
+		vers[name] = version
+	}
+
+	return vers
+}
+
+// UserAgents returns a map of User Agents to Semantic Versions, for the user agents in this version message.
+func (msg *MsgVersion) UserAgents() map[string]semver.Version {
+	return ParseUserAgentSemVers(msg.UserAgent)
 }
