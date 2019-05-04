@@ -111,7 +111,7 @@ func NewGetCurrentNetCmd() *GetCurrentNetCmd {
 type GetDAGColoringCmd struct{}
 
 // NewGetDAGColoringCmd returns a new instance which can be used to issue a
-// getdagtips JSON-RPC command.
+// getdagcoloring JSON-RPC command.
 func NewGetDAGColoringCmd() *GetDAGColoringCmd {
 	return &GetDAGColoringCmd{}
 }
@@ -119,7 +119,7 @@ func NewGetDAGColoringCmd() *GetDAGColoringCmd {
 type GetDAGTipsCmd struct{}
 
 // NewGetDAGTipsCmd returns a new instance which can be used to issue a
-// getdagcoloring JSON-RPC command.
+// getdagtips JSON-RPC command.
 func NewGetDAGTipsCmd() *GetDAGTipsCmd {
 	return &GetDAGTipsCmd{}
 }
