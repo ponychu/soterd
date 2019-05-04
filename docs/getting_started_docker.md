@@ -36,7 +36,7 @@ These instructions describe getting started with soterd using the [docker](https
 
 2. Open the `./demo/dag_0.html` file in your browser, and navigate through the dag (if `-stepping` was specified for the `dagviz` run).
 
-* Blocks are coloured based on the node that generated them.
+* Blocks are colored based on the node that generated them.
 * You can hover your mouse over a block to see more information about it.
 * You can step forward/backward through snapshots of dag-generation with _prev_ and _next_ hyperlinks (if `-stepping` was specified for the `dagviz` run).
 

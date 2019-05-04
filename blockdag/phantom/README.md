@@ -5,4 +5,4 @@ phantom
 
 ## Overview
 
-Package `phantom` implements the [PHANTOM protocol](https://eprint.iacr.org/2018/104) for blockdag ordering and colouring.
+Package `phantom` implements the [PHANTOM protocol](https://eprint.iacr.org/2018/104) for blockdag ordering and coloring.

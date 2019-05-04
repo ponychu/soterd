@@ -418,7 +418,7 @@ func (rs *resultSet) GraphMeanBlkGenTime() ([][]byte, error) {
 		}
 	}
 
-	// This is used for colouring the y-values
+	// This is used for coloring the y-values
 	viridisByY := func(xr, yr chart.Range, index int, x, y float64) drawing.Color {
 		return chart.Viridis(y, yr.GetMin(), yr.GetMax())
 	}
