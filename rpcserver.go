@@ -151,6 +151,7 @@ var rpcHandlersBeforeInit = map[string]commandHandler{
 	"getcfilterheader":   handleGetCFilterHeader,
 	"getconnectioncount": handleGetConnectionCount,
 	"getcurrentnet":      handleGetCurrentNet,
+	"getdagcoloring":     handleGetDAGColoring,
 	"getdagtips":         handleGetDAGTips,
 	"getdifficulty":      handleGetDifficulty,
 	"getgenerate":        handleGetGenerate,
@@ -2323,6 +2324,33 @@ func handleGetConnectionCount(s *rpcServer, cmd interface{}, closeChan <-chan st
 // handleGetCurrentNet implements the getcurrentnet command.
 func handleGetCurrentNet(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (interface{}, error) {
 	return s.cfg.ChainParams.Net, nil
+}
+
+// handleGetDAGColoring implements the getdagcoloring command
+func handleGetDAGColoring(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (interface{}, error) {
+	rpcsLog.Debug("In handleGetDAGColoring")
+
+	coloring := s.cfg.Chain.DAGColoring()
+	colorSet := make(map[chainhash.Hash]struct{})
+	order := s.cfg.Chain.DAGOrdering()
+	dagOrder := make([]*soterjson.GetDAGColoringResult, len(order))
+
+	for _, hash := range coloring {
+		colorSet[*hash] = struct{}{}
+	}
+
+	for i, hash := range order {
+		_, isBlue := colorSet[*hash]
+
+		val := &soterjson.GetDAGColoringResult{
+			Hash: hash.String(),
+			IsBlue: isBlue,
+		}
+
+		dagOrder[i] = val
+	}
+
+	return dagOrder, nil
 }
 
 // handleGetDAGTips implements the getdagtips command.

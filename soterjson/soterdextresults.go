@@ -25,6 +25,12 @@ type GetAddrCacheResult struct {
 	Addresses []string `json:"addresses"`
 }
 
+// GetDAGColoringResult models the data returned from the getdagcoloring command.
+type GetDAGColoringResult struct {
+	Hash string `json:"hash"`
+	IsBlue bool `json:"isblue"`
+}
+
 // GetDAGTipsResult models the data returned from the getdagtips command.
 type GetDAGTipsResult struct {
 	Tips []string `json:"tips"`
